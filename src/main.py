@@ -21,7 +21,7 @@ from src.config import (
 )
 from src.dedupe import load_seen_ids
 from src.llm import build_client, load_config_from_env
-from src.models import Area, Paper, Score, Summary
+from src.models import Area, Paper, Score
 from src.render import write_paper_note
 from src.scoring import score_paper, select_top
 from src.sources import fetch_arxiv, fetch_rss
@@ -83,8 +83,14 @@ def run_pipeline(
         log.info("no fresh candidates — exiting")
         return []
 
-    pool = fresh_pairs[:SCORING_POOL_SIZE]
-    log.info("scoring %d candidates with LLM (%s)", len(pool), llm_model)
+    ARXIV_POOL_SHARE = SCORING_POOL_SIZE // 2  # 15
+    RSS_POOL_SHARE = SCORING_POOL_SIZE - ARXIV_POOL_SHARE  # 15
+
+    arxiv_fresh = [(p, a) for p, a in fresh_pairs if a == "ai"][:ARXIV_POOL_SHARE]
+    rss_fresh = [(p, a) for p, a in fresh_pairs if a != "ai"][:RSS_POOL_SHARE]
+    pool = arxiv_fresh + rss_fresh
+    log.info("scoring %d candidates with LLM (%s) — %d arxiv + %d rss",
+             len(pool), llm_model, len(arxiv_fresh), len(rss_fresh))
 
     scored: list[tuple[Paper, Score, Area]] = []
     for paper, area in pool:
