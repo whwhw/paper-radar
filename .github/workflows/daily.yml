@@ -1,0 +1,51 @@
+name: daily-paper-radar
+
+on:
+  schedule:
+    - cron: '0 1 * * *'  # 01:00 UTC = 09:00 Beijing
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # need to commit generated archive/ files
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.4.30"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install deps
+        run: uv sync --frozen
+
+      - name: Run tests
+        run: uv run pytest -v
+
+      - name: Run pipeline
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ARCHIVE_BASE_URL: https://github.com/${{ github.repository }}/blob/main/archive
+        run: uv run python -m src.main
+
+      - name: Commit new papers
+        run: |
+          git config user.name "paper-radar-bot"
+          git config user.email "bot@paper-radar.local"
+          git add archive/
+          if git diff --cached --quiet; then
+            echo "No new papers — skipping commit"
+          else
+            git commit -m "chore: paper digest $(date -u +%Y-%m-%d)"
+            git push
+          fi
