@@ -1,9 +1,19 @@
-"""Score candidate papers via OpenAI-compatible LLM with Pydantic structured output."""
+"""Score candidate papers via OpenAI-compatible LLM with JSON mode + Pydantic validation.
+
+Uses response_format={"type": "json_object"} (universal across providers including
+DeepSeek, OpenAI, Gemini, OpenRouter, Ollama) instead of the OpenAI-specific
+json_schema mode. JSON shape is described in the system prompt; response is
+parsed manually with Score.model_validate_json().
+"""
+
+import json
 
 from openai import OpenAI
 
 from src.config import SCORING_MAX_TOKENS, USER_PROFILE
 from src.models import Paper, Score
+
+_SCHEMA_HINT = json.dumps(Score.model_json_schema(), ensure_ascii=False, indent=2)
 
 _SCORING_SYSTEM = f"""\
 你是一个论文筛选助手。根据下面的用户画像，对每篇候选论文打分，帮用户挑选每天值得读的 1-2 篇。
@@ -22,14 +32,19 @@ _SCORING_SYSTEM = f"""\
    - 能直接用在工程项目里 / 能影响投资判断 / 能做成爆款脚本 → 高分
    - 纯学术贡献无外部价值 → 低分
 
-reasoning 字段写 1-2 句中文，说明为什么这样打分。务必只输出符合 schema 的 JSON。
+reasoning 字段写 1-2 句中文，说明为什么这样打分。
+
+输出要求：必须返回一个严格符合下面 JSON Schema 的 JSON 对象，不要包含任何 markdown 代码块包装、解释文字或额外字段。
+
+JSON Schema:
+{_SCHEMA_HINT}
 """
 
 
 def score_paper(paper: Paper, client: OpenAI, model: str) -> Score:
     """Call LLM to score a single paper. Returns a validated Score."""
     user_msg = f"""\
-请给下面这篇论文打分：
+请给下面这篇论文打分，返回 JSON：
 
 **标题**: {paper.title}
 **来源**: {paper.source} ({paper.primary_category})
@@ -37,19 +52,19 @@ def score_paper(paper: Paper, client: OpenAI, model: str) -> Score:
 **摘要**:
 {paper.abstract}
 """
-    completion = client.chat.completions.parse(
+    completion = client.chat.completions.create(
         model=model,
         max_tokens=SCORING_MAX_TOKENS,
         messages=[
             {"role": "system", "content": _SCORING_SYSTEM},
             {"role": "user", "content": user_msg},
         ],
-        response_format=Score,
+        response_format={"type": "json_object"},
     )
-    parsed = completion.choices[0].message.parsed
-    if parsed is None:
-        raise RuntimeError(f"LLM returned no parsed Score for paper {paper.id}")
-    return parsed
+    content = completion.choices[0].message.content
+    if not content:
+        raise RuntimeError(f"LLM returned empty content for paper {paper.id}")
+    return Score.model_validate_json(content)
 
 
 def select_top(

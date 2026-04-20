@@ -10,7 +10,7 @@ import httpx
 
 from src.models import Paper
 
-ARXIV_API = "http://export.arxiv.org/api/query"
+ARXIV_API = "https://export.arxiv.org/api/query"
 ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
 
 
@@ -22,7 +22,7 @@ def fetch_arxiv(category: str, max_results: int = 50) -> list[Paper]:
         "sortOrder": "descending",
         "max_results": max_results,
     }
-    response = httpx.get(ARXIV_API, params=params, timeout=30.0)
+    response = httpx.get(ARXIV_API, params=params, timeout=30.0, follow_redirects=True)
     response.raise_for_status()
     return _parse_arxiv_atom(response.text)
 

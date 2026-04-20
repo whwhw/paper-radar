@@ -9,7 +9,7 @@ from src.sources import fetch_arxiv, fetch_rss
 @respx.mock
 def test_fetch_arxiv_parses_atom_feed(fixtures_dir):
     fixture = (fixtures_dir / "arxiv_response.xml").read_text()
-    respx.get("http://export.arxiv.org/api/query").mock(
+    respx.get("https://export.arxiv.org/api/query").mock(
         return_value=Response(200, text=fixture)
     )
 
@@ -29,7 +29,7 @@ def test_fetch_arxiv_parses_atom_feed(fixtures_dir):
 
 @respx.mock
 def test_fetch_arxiv_handles_empty_feed():
-    respx.get("http://export.arxiv.org/api/query").mock(
+    respx.get("https://export.arxiv.org/api/query").mock(
         return_value=Response(200, text='<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"/>')
     )
 

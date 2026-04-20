@@ -19,12 +19,12 @@ def make_paper(pid: str = "arxiv:1", title: str = "Test") -> Paper:
 
 
 def _mock_client_with_score(score: Score) -> MagicMock:
-    """Build a mock OpenAI client whose .chat.completions.parse() returns the given Score."""
-    fake_msg = MagicMock(parsed=score)
+    """Build a mock OpenAI client whose chat.completions.create() returns a JSON string."""
+    fake_msg = MagicMock(content=score.model_dump_json())
     fake_choice = MagicMock(message=fake_msg)
     fake_completion = MagicMock(choices=[fake_choice])
     client = MagicMock()
-    client.chat.completions.parse.return_value = fake_completion
+    client.chat.completions.create.return_value = fake_completion
     return client
 
 
@@ -40,10 +40,10 @@ def test_score_paper_calls_openai_with_pydantic_response_format():
     assert isinstance(result, Score)
     assert result.relevance == 8.0
     assert result.total == 8.0  # 0.4*8 + 0.3*7 + 0.3*9
-    client.chat.completions.parse.assert_called_once()
-    call_kwargs = client.chat.completions.parse.call_args.kwargs
+    client.chat.completions.create.assert_called_once()
+    call_kwargs = client.chat.completions.create.call_args.kwargs
     assert call_kwargs["model"] == "gpt-4o"
-    assert call_kwargs["response_format"] == Score
+    assert call_kwargs["response_format"] == {"type": "json_object"}
     msgs = call_kwargs["messages"]
     assert msgs[0]["role"] == "system"
     assert msgs[1]["role"] == "user"
