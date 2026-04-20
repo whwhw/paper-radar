@@ -3,7 +3,7 @@ from datetime import date
 import respx
 from httpx import Response
 
-from src.sources import fetch_arxiv
+from src.sources import fetch_arxiv, fetch_rss
 
 
 @respx.mock
@@ -35,11 +35,6 @@ def test_fetch_arxiv_handles_empty_feed():
 
     papers = fetch_arxiv(category="cs.LG", max_results=10)
     assert papers == []
-
-
-from datetime import date
-
-from src.sources import fetch_rss
 
 
 def test_fetch_rss_parses_feed_with_local_file(fixtures_dir, mocker):

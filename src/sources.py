@@ -1,6 +1,8 @@
 """Candidate paper fetchers — arXiv API and journal RSS feeds."""
 
+import hashlib
 from datetime import datetime
+from email.utils import parsedate_to_datetime
 from xml.etree import ElementTree as ET
 
 import feedparser
@@ -61,10 +63,6 @@ def _parse_arxiv_atom(xml_text: str) -> list[Paper]:
             )
         )
     return papers
-
-
-import hashlib
-from email.utils import parsedate_to_datetime
 
 
 def fetch_rss(url: str, source_name: str) -> list[Paper]:
