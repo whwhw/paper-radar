@@ -39,7 +39,8 @@ def test_render_markdown_includes_all_sections():
     post = frontmatter.loads(md)
     assert post.metadata["id"] == "arxiv:2401.00001"
     assert post.metadata["title"] == "Locality-Biased Attention"
-    assert post.metadata["area"] == "ai"
+    assert post.metadata["area"] == "tech"  # ai maps to tech per vault enum
+    assert "ai" in post.metadata["tags"]    # raw area kept as tag
     assert post.metadata["status"] == "reference"
     assert post.metadata["starred"] is False
     assert post.metadata["score"] == 8.05  # 0.4*8.5 + 0.3*7.5 + 0.3*8.0

@@ -49,7 +49,7 @@ def render_markdown(paper: Paper, score: Score, summary: Summary, area: Area) ->
         tags=["paper", area],
         created=date.today().isoformat(),
         summary=summary.one_line_conclusion,
-        area=area,
+        area=_area_to_vault_area(area),
         status="reference",
         source=paper.source,
         url=paper.url,
