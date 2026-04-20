@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <id>http://arxiv.org/abs/2401.00001v1</id>
+    <updated>2026-04-19T00:00:00Z</updated>
+    <published>2026-04-18T00:00:00Z</published>
+    <title>Attention Mechanisms Revisited</title>
+    <summary>We revisit attention mechanisms in transformers and propose a locality bias.</summary>
+    <author><name>Alice Author</name></author>
+    <author><name>Bob Researcher</name></author>
+    <link href="http://arxiv.org/abs/2401.00001v1" rel="alternate" type="text/html"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2401.00002v1</id>
+    <updated>2026-04-19T00:00:00Z</updated>
+    <published>2026-04-18T00:00:00Z</published>
+    <title>Distillation at Scale</title>
+    <summary>A study of model distillation at the 100B parameter scale.</summary>
+    <author><name>Carol Coder</name></author>
+    <link href="http://arxiv.org/abs/2401.00002v1" rel="alternate" type="text/html"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+</feed>

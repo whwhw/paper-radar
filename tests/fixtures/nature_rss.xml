@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+<title>Nature Medicine</title>
+<item>
+  <title>GLP-1 Agonists and Longevity: A Mechanistic Review</title>
+  <link>https://www.nature.com/articles/s41591-026-12345</link>
+  <description>This review examines the mechanisms by which GLP-1 receptor agonists may extend healthspan.</description>
+  <pubDate>Fri, 18 Apr 2026 00:00:00 GMT</pubDate>
+  <dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Jane Researcher</dc:creator>
+  <guid>https://www.nature.com/articles/s41591-026-12345</guid>
+</item>
+</channel>
+</rss>
