@@ -121,6 +121,71 @@ def test_run_pipeline_balances_arxiv_and_rss(tmp_path, mocker):
     assert "rss:abc" in scored_ids, f"RSS paper missing from scored set: {scored_ids}"
 
 
+def test_run_pipeline_distributes_across_buckets(tmp_path, mocker):
+    """Each bucket (ai / health / other) fills up to PER_BUCKET_TARGET slots independently."""
+    ai_papers = [
+        Paper(id=f"arxiv:ai{i}", title=f"AI Paper {i}", authors=["A"],
+              abstract="x", source="arXiv", url=f"http://x/ai{i}",
+              published=date(2026, 4, 19), primary_category="cs.LG")
+        for i in range(5)
+    ]
+    health_papers = [
+        Paper(id=f"rss:health{i}", title=f"Health Paper {i}", authors=["B"],
+              abstract="y", source="NEJM", url=f"http://nejm/{i}",
+              published=date(2026, 4, 19), primary_category="NEJM")
+        for i in range(5)
+    ]
+    cognition_papers = [
+        Paper(id=f"rss:cog{i}", title=f"Cognition Paper {i}", authors=["C"],
+              abstract="z", source="Neuron", url=f"http://neuron/{i}",
+              published=date(2026, 4, 19), primary_category="Neuron")
+        for i in range(5)
+    ]
+
+    mocker.patch("src.main.fetch_arxiv", return_value=ai_papers)
+    def _rss(url, source_name):
+        if source_name == "NEJM":
+            return health_papers
+        if source_name == "Neuron":
+            return cognition_papers
+        return []
+    mocker.patch("src.main.fetch_rss", side_effect=_rss)
+    mocker.patch("src.main.load_seen_ids", return_value=set())
+    mocker.patch("src.main.score_paper",
+                 return_value=Score(relevance=9, simplicity=9, inspiration=9,
+                                    reasoning="strong"))
+    mocker.patch("src.main.generate_summary",
+                 return_value=Summary(
+                     one_line_conclusion="x", plain_explanation="x",
+                     key_method=None, inspiration_programmer="x",
+                     inspiration_investor="x", inspiration_creator="x"))
+    mocker.patch("src.main.send_paper_notification")
+
+    written = run_pipeline(
+        archive_dir=tmp_path,
+        llm_client=MagicMock(), llm_model="test-model",
+        bot_token="x", chat_id="y",
+        archive_base_url="https://example.com",
+        dry_run=False,
+    )
+
+    # Expect 6 papers written: 2 ai + 2 health + 2 other
+    assert len(written) == 6, f"expected 6 (2/bucket), got {len(written)}"
+    # Verify the bucket distribution by parsing back the frontmatter
+    import frontmatter
+    by_bucket = {"ai": 0, "health": 0, "other": 0}
+    for path in written:
+        post = frontmatter.load(path)
+        pid = post.metadata["id"]
+        if pid.startswith("arxiv:ai"):
+            by_bucket["ai"] += 1
+        elif "health" in pid:
+            by_bucket["health"] += 1
+        else:
+            by_bucket["other"] += 1
+    assert by_bucket == {"ai": 2, "health": 2, "other": 2}, by_bucket
+
+
 def test_run_pipeline_dry_run_skips_telegram(tmp_path, mocker):
     """dry_run=True must not send Telegram even when papers qualify."""
     paper = Paper(

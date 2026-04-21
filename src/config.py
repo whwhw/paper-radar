@@ -38,10 +38,27 @@ RSS_FEEDS = [
 
 # Scoring threshold (spec §3.2): if no candidate ≥ 7.0, ship nothing.
 MIN_SCORE_THRESHOLD = 7.0
-DAILY_OUTPUT_TARGET = 2  # max papers per day
 
-# AI scoring candidate pool size (top-N candidates after dedupe go to LLM)
-SCORING_POOL_SIZE = 30
+# Per-bucket daily output (spec §3.3) — sums to DAILY_OUTPUT_TARGET
+PER_BUCKET_TARGET: dict[str, int] = {
+    "ai": 2,
+    "health": 2,
+    "other": 2,  # union of tech / cognition / behavior / complexity
+}
+DAILY_OUTPUT_TARGET = sum(PER_BUCKET_TARGET.values())  # 6
+
+# Per-bucket scoring pool size — total = 3 × 10 = 30 LLM scoring calls per run
+PER_BUCKET_POOL_SIZE = 10
+SCORING_POOL_SIZE = PER_BUCKET_POOL_SIZE * len(PER_BUCKET_TARGET)
+
+
+def bucket_of(area: str) -> str:
+    """Map a paper's `area` to one of the 3 selection buckets."""
+    if area == "ai":
+        return "ai"
+    if area == "health":
+        return "health"
+    return "other"
 
 # User profile injected into LLM system prompt for scoring + summarization
 USER_PROFILE = """\

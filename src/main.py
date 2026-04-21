@@ -14,10 +14,11 @@ from src.config import (
     ARCHIVE_DIR,
     ARXIV_CATEGORIES,
     ARXIV_MAX_RESULTS,
-    DAILY_OUTPUT_TARGET,
     MIN_SCORE_THRESHOLD,
+    PER_BUCKET_POOL_SIZE,
+    PER_BUCKET_TARGET,
     RSS_FEEDS,
-    SCORING_POOL_SIZE,
+    bucket_of,
 )
 from src.dedupe import load_seen_ids
 from src.llm import build_client, load_config_from_env
@@ -83,14 +84,18 @@ def run_pipeline(
         log.info("no fresh candidates — exiting")
         return []
 
-    ARXIV_POOL_SHARE = SCORING_POOL_SIZE // 2  # 15
-    RSS_POOL_SHARE = SCORING_POOL_SIZE - ARXIV_POOL_SHARE  # 15
+    # Bucket fresh candidates into ai / health / other (spec §3.3)
+    by_bucket: dict[str, list[tuple[Paper, Area]]] = {b: [] for b in PER_BUCKET_TARGET}
+    for p, a in fresh_pairs:
+        by_bucket[bucket_of(a)].append((p, a))
 
-    arxiv_fresh = [(p, a) for p, a in fresh_pairs if a == "ai"][:ARXIV_POOL_SHARE]
-    rss_fresh = [(p, a) for p, a in fresh_pairs if a != "ai"][:RSS_POOL_SHARE]
-    pool = arxiv_fresh + rss_fresh
-    log.info("scoring %d candidates with LLM (%s) — %d arxiv + %d rss",
-             len(pool), llm_model, len(arxiv_fresh), len(rss_fresh))
+    # Per-bucket pool: take first N per bucket (sources already in recency order)
+    pool: list[tuple[Paper, Area]] = []
+    for bucket, papers in by_bucket.items():
+        pool.extend(papers[:PER_BUCKET_POOL_SIZE])
+    bucket_counts = {b: min(len(by_bucket[b]), PER_BUCKET_POOL_SIZE) for b in PER_BUCKET_TARGET}
+    log.info("scoring %d candidates with LLM (%s) — by bucket: %s",
+             len(pool), llm_model, bucket_counts)
 
     scored: list[tuple[Paper, Score, Area]] = []
     for paper, area in pool:
@@ -100,11 +105,18 @@ def run_pipeline(
         except Exception as e:
             log.warning("scoring failed for %s: %s", paper.id, e)
 
-    pairs_for_select = [(p, s) for p, s, _ in scored]
-    top = select_top(pairs_for_select, threshold=MIN_SCORE_THRESHOLD, n=DAILY_OUTPUT_TARGET)
+    # Per-bucket top-N selection — each bucket gets its own threshold cut
+    top: list[tuple[Paper, Score]] = []
+    for bucket, target in PER_BUCKET_TARGET.items():
+        bucket_pairs = [(p, s) for p, s, a in scored if bucket_of(a) == bucket]
+        chosen = select_top(bucket_pairs, threshold=MIN_SCORE_THRESHOLD, n=target)
+        log.info("bucket %s: %d/%d slots filled (≥%.1f)",
+                 bucket, len(chosen), target, MIN_SCORE_THRESHOLD)
+        top.extend(chosen)
 
     if not top:
-        log.info("no candidates ≥ %.1f — shipping nothing today", MIN_SCORE_THRESHOLD)
+        log.info("no candidates ≥ %.1f in any bucket — shipping nothing today",
+                 MIN_SCORE_THRESHOLD)
         return []
 
     area_map = {p.id: a for p, _, a in scored}
